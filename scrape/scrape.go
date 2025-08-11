@@ -388,37 +388,27 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		return video, nil
 	}
 
+	// Funkcja zapisu wyników z backup
 	saveResults := func(videos []models.Video, filename string) error {
-		// Tworzenie katalogów jeśli nie istnieją
-		if err := os.MkdirAll("tmp/json", 0755); err != nil {
-			return fmt.Errorf("błąd tworzenia katalogu tmp/json: %w", err)
-		}
-		if err := os.MkdirAll("tmp/backup", 0755); err != nil {
-			return fmt.Errorf("błąd tworzenia katalogu tmp/backup: %w", err)
-		}
-
 		// Backup poprzedniej wersji jeśli istnieje
 		if _, err := os.Stat(filename); err == nil {
-			backupName := fmt.Sprintf("tmp/backup/%s.backup.%d.json",
-				filepath.Base(filename),
-				time.Now().Unix(),
-			)
-			if err := os.Rename(filename, backupName); err != nil {
-				return fmt.Errorf("błąd przenoszenia do backup: %w", err)
-			}
+			backupName := fmt.Sprintf("%s.backup.%d", filename, time.Now().Unix())
+			os.Rename(filename, backupName)
 		}
 
-		// Zapis głównego pliku
-		if err := writeJSON(filename, videos); err != nil {
-			return err
+		file, err := os.Create(filename)
+		if err != nil {
+			return fmt.Errorf("błąd podczas tworzenia pliku: %w", err)
 		}
+		defer file.Close()
 
-		// Zapis do tmp/json/
-		tmpJSONFile := filepath.Join("tmp/json", filepath.Base(filename))
-		if err := writeJSON(tmpJSONFile, videos); err != nil {
-			return err
+		encoder := json.NewEncoder(file)
+		encoder.SetEscapeHTML(false)
+		encoder.SetIndent("", "  ")
+
+		if err := encoder.Encode(videos); err != nil {
+			return fmt.Errorf("błąd podczas serializacji do JSON: %w", err)
 		}
-
 		return nil
 	}
 
@@ -588,22 +578,4 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		}
 		fmt.Printf("Zapisano %d wideo do videos.json\n", len(videos))
 	}
-}
-
-// Pomocnicza funkcja do zapisu JSON
-func writeJSON(path string, data interface{}) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("błąd podczas tworzenia pliku %s: %w", path, err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
-
-	if err := encoder.Encode(data); err != nil {
-		return fmt.Errorf("błąd podczas serializacji do JSON (%s): %w", path, err)
-	}
-	return nil
 }

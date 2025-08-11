@@ -145,7 +145,7 @@ func browser() {
 	// Get scraping results
 	router.GET("/results", func(c *gin.Context) {
 		// Read results from videos.json file
-		data, err := os.ReadFile("tmp/json/videos.json")
+		data, err := os.ReadFile("videos.json")
 		if err != nil {
 			c.JSON(http.StatusNotFound, ScrapeResponse{
 				Status:  "error",
@@ -175,7 +175,7 @@ func browser() {
 
 	// Get hrefs (links found)
 	router.GET("/hrefs", func(c *gin.Context) {
-		data, err := os.ReadFile("tmp/json/hrefs.json")
+		data, err := os.ReadFile("hrefs.json")
 		if err != nil {
 			c.JSON(http.StatusNotFound, ScrapeResponse{
 				Status:  "error",
@@ -205,7 +205,7 @@ func browser() {
 
 	// Get progress files
 	router.GET("/progress", func(c *gin.Context) {
-		files, err := os.ReadDir("/tmp/json/")
+		files, err := os.ReadDir(".")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ScrapeResponse{
 				Status:  "error",

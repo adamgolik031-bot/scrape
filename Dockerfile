@@ -48,7 +48,7 @@ RUN set -e && \
   (apt-get update -y --fix-missing || \
   (sleep 5 && apt-get update -y --fix-missing) || \
   (sleep 10 && apt-get update -y)) && \
-  (apt-get install -y --no-install-recommends ca-certificates libgomp1 chromium || \
+  (apt-get install -y --no-install-recommends ca-certificates libgomp1 chromium   file webp || \
   apt-get install -y --no-install-recommends --allow-unauthenticated ca-certificates libgomp1 chromium || \
   (apt-get clean && apt-get update -y && apt-get install -y --no-install-recommends ca-certificates libgomp1 chromium)) && \
   rm -rf /var/lib/apt/lists/*
