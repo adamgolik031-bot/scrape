@@ -23,7 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
+func Scrape(baseURL string, ype string, input3 string, seeBrowser bool, Prediction bool) {
 	var good_array []int
 
 	if ype == "" {
@@ -127,6 +127,7 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 	}
 
 	// Funkcja konwersji WebP do JPEG
+
 	convertWebPToJPEG := func(inputPath string) (string, error) {
 		cmd := exec.Command("file", inputPath)
 		output, err := cmd.Output()
@@ -146,7 +147,6 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		}
 		return inputPath, nil
 	}
-
 	// Funkcja wyciągnięcia nazwy pliku z URL
 	getFilenameFromURL := func(imgURL string) (string, error) {
 		parsedURL, err := url.Parse(imgURL)
@@ -160,7 +160,6 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		}
 		return filename, nil
 	}
-
 	// Zoptymalizowana funkcja pobierania obrazka z retry i timeout
 	downloadImageWithRetry := func(imgURL, savePath string, maxRetries int) error {
 		client := &http.Client{
@@ -200,7 +199,6 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		}
 		return fmt.Errorf("osiągnięto maksymalną liczbę prób: %d", maxRetries)
 	}
-
 	// FIXED: Zoptymalizowana funkcja przetwarzania pojedynczego video
 	processVideo := func(ctx context.Context, href string, predictor *nsfw.Predictor) (*models.Video, error) {
 		log.Printf("Rozpoczynam przetwarzanie: %s", href)
@@ -276,19 +274,20 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		log.Println("Predykcja NSFW...")
 
 		// Predykcja NSFW
-		image := predictor.NewImage(convertedPath, 3)
-		result := predictor.Predict(image)
-		category := nsfw.GetMaxCategory(result)
+		if Prediction {
+			image := predictor.NewImage(convertedPath, 3)
+			result := predictor.Predict(image)
+			category := nsfw.GetMaxCategory(result)
+			// Sprawdź czy kategoria jest akceptowalna
+			if !slices.Contains(good_array, category) {
+				return nil, fmt.Errorf("kategoria %d nie jest akceptowalna", category)
+			}
 
+			log.Printf("Kategoria akceptowalna: %d, pobieranie szczegółów...", category)
+
+		}
 		// Usuń plik tymczasowy
 		os.Remove(convertedPath)
-
-		// Sprawdź czy kategoria jest akceptowalna
-		if !slices.Contains(good_array, category) {
-			return nil, fmt.Errorf("kategoria %d nie jest akceptowalna", category)
-		}
-
-		log.Printf("Kategoria akceptowalna: %d, pobieranie szczegółów...", category)
 
 		// FIXED: Pobierz szczegóły video sekwencyjnie zamiast równolegle
 		var (
@@ -373,21 +372,18 @@ func Scrape(baseURL string, ype string, input3 string, seeBrowser bool) {
 		log.Printf("Pobrano %d tagów", len(tags))
 
 		cleanURL := strings.ReplaceAll(videoSrc, "\\u0026", "&")
-
 		video := &models.Video{
-			Title:      title,
-			Tags:       tags,
-			Href:       cleanURL,
-			Link:       href,
-			Prediction: models.Prediction(result),
-			Img:        imgURL,
+			Title: title,
+			Tags:  tags,
+			Href:  cleanURL,
+			Link:  href,
+			Img:   imgURL,
 		}
 
 		log.Printf("Video przetworzony pomyślnie: %s", title)
 
 		return video, nil
 	}
-
 	// Funkcja zapisu wyników z backup
 	saveResults := func(videos []models.Video, filename string) error {
 		// Backup poprzedniej wersji jeśli istnieje

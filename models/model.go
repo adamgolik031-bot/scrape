@@ -1,13 +1,13 @@
 package models
 
 type Video struct {
-	Id         uint       `json:"id" gorm:"primaryKey"`
-	Title      string     `json:"title"`
-	Tags       []Tags     `json:"tags" gorm:"many2many:video_tags;"`
-	Href       string     `json:"href"`
-	Link       string     `json:"link"`
-	Prediction Prediction `json:"prediction" gorm:"embedded"`
-	Img        string     `json:"img"`
+	Id         uint        `json:"id" gorm:"primaryKey"`
+	Title      string      `json:"title"`
+	Tags       []Tags      `json:"tags" gorm:"many2many:video_tags;"`
+	Href       string      `json:"href"`
+	Link       string      `json:"link"`
+	Prediction *Prediction `json:"prediction" gorm:"embedded"`
+	Img        string      `json:"img"`
 }
 
 type Tags struct {

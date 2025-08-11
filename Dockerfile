@@ -1,7 +1,7 @@
 # =========================
 # Stage 1: Build Go app
 # =========================
-FROM golang:1.24.1 as build
+FROM golang:1.24-bookworm as build
 
 # Install TensorFlow C API with error checking
 RUN apt-get clean && apt-get update -y --fix-missing && \
@@ -26,7 +26,6 @@ RUN apt-get clean && apt-get update -y --fix-missing && \
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY .env .env
-
 RUN ls -la /src/.env
 RUN go mod download
 COPY . .
@@ -42,16 +41,21 @@ RUN CGO_ENABLED=1 GOARCH=amd64 go build -o /bin/server . && \
 # =========================
 FROM debian:bookworm-slim as final
 
-# Install runtime dependencies with debug
+# Install runtime dependencies - FIXED VERSION
 RUN set -e && \
   apt-get clean && rm -rf /var/lib/apt/lists/* && \
-  (apt-get update -y --fix-missing || \
-  (sleep 5 && apt-get update -y --fix-missing) || \
-  (sleep 10 && apt-get update -y)) && \
-  (apt-get install -y --no-install-recommends ca-certificates libgomp1 chromium   file webp || \
-  apt-get install -y --no-install-recommends --allow-unauthenticated ca-certificates libgomp1 chromium || \
-  (apt-get clean && apt-get update -y && apt-get install -y --no-install-recommends ca-certificates libgomp1 chromium)) && \
-  rm -rf /var/lib/apt/lists/*
+  apt-get update -y --fix-missing && \
+  apt-get install -y --no-install-recommends \
+  ca-certificates \
+  libgomp1 \
+  chromium \
+  file \
+  webp \
+  curl && \
+  rm -rf /var/lib/apt/lists/* && \
+  # Verify file command is installed
+  echo "=== Verifying file command ===" && \
+  which file && file --version
 
 # Copy ALL TensorFlow files (lib and include directories)
 COPY --from=build /usr/local/lib/ /usr/local/lib/
@@ -69,17 +73,23 @@ RUN echo "=== Copied TensorFlow files ===" && \
 
 # Copy binary
 COPY --from=build /src/.env .env
-
 COPY --from=build /bin/server /bin/server
 
 # Set environment variables
 ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+ENV PATH="/usr/local/bin:${PATH}"
 
 # Debug the binary before running
 RUN echo "=== Final binary check ===" && \
   ldd /bin/server | head -20 && \
   echo "=== TensorFlow library check ===" && \
-  (ldd /bin/server | grep tensorflow || echo "TensorFlow libraries not showing in ldd")
+  (ldd /bin/server | grep tensorflow || echo "TensorFlow libraries not showing in ldd") && \
+  echo "=== File command check ===" && \
+  which file && \
+  echo "=== Testing file command ===" && \
+  echo "test" > /tmp/test.txt && \
+  file /tmp/test.txt && \
+  rm /tmp/test.txt
 
 EXPOSE 8080
 CMD ["/bin/server"]

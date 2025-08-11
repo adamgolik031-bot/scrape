@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -35,6 +34,7 @@ type ScrapeRequest struct {
 	Type       string `json:"type"`
 	MaxVideos  string `json:"maxVideos"`
 	SeeBrowser bool   `json:"seeBrowser"`
+	Predition  bool   `json:"predition"`
 }
 
 // ScrapeResponse represents the response structure
@@ -95,7 +95,7 @@ func browser() {
 
 		// Start scraping in a goroutine to avoid timeout
 		go func() {
-			scrape.Scrape(req.BaseURL, req.Type, req.MaxVideos, req.SeeBrowser)
+			scrape.Scrape(req.BaseURL, req.Type, req.MaxVideos, req.SeeBrowser, req.Predition)
 		}()
 
 		c.JSON(http.StatusAccepted, ScrapeResponse{
@@ -106,38 +106,6 @@ func browser() {
 				"type":       req.Type,
 				"maxVideos":  req.MaxVideos,
 				"seeBrowser": req.SeeBrowser,
-			},
-		})
-	})
-
-	// GET endpoint for simple scraping (query parameters)
-	router.GET("/scrape", func(c *gin.Context) {
-		baseURL := c.Query("baseURL")
-		if baseURL == "" {
-			c.JSON(http.StatusBadRequest, ScrapeResponse{
-				Status:  "error",
-				Message: "baseURL parameter is required",
-			})
-			return
-		}
-
-		typeParam := c.Query("type")
-		maxVideos := c.Query("maxVideos")
-		seeBrowser, _ := strconv.ParseBool(c.Query("seeBrowser"))
-
-		// Start scraping in a goroutine
-		go func() {
-			scrape.Scrape(baseURL, typeParam, maxVideos, seeBrowser)
-		}()
-
-		c.JSON(http.StatusAccepted, ScrapeResponse{
-			Status:  "success",
-			Message: "Scraping started successfully",
-			Data: map[string]interface{}{
-				"baseURL":    baseURL,
-				"type":       typeParam,
-				"maxVideos":  maxVideos,
-				"seeBrowser": seeBrowser,
 			},
 		})
 	})
@@ -277,6 +245,8 @@ func Cli() {
 	urlFlag := flag.String("url", "", "URL video")
 	typeFlag := flag.String("type", "", "Typy video (0-4, oddzielone przecinkami)")
 	maxVideos := flag.String("max", "", "Maksymalna liczba video do pobrania")
+	predit := flag.String("predition", "", "predition dla vidoe")
+
 	help := flag.Bool("help", false, "Pokaż pomoc")
 
 	flag.Parse()
@@ -285,12 +255,15 @@ func Cli() {
 	if *help {
 		fmt.Println("Użycie:")
 		fmt.Println("  ./app [flagi]")
-		fmt.Println("  ./app --browser y --url https://example.com --type 1,2 --max 10")
+		fmt.Println("  ./app --browser y --url https://example.com --type 1,2 --max 10 --predit false")
 		fmt.Println("\nFlagi:")
 		flag.PrintDefaults()
 		return
 	}
-
+	var predition bool = false
+	if *predit != "false" {
+		predition = true
+	}
 	// Obsługa browser
 	var see_browser bool = true
 	if *browserFlag != "" {
@@ -350,5 +323,5 @@ func Cli() {
 	fmt.Printf("URL: %s\n", baseURL)
 	fmt.Printf("Typ: %s\n", ype)
 	fmt.Printf("Max videos: %s\n", input3)
-	scrape.Scrape(baseURL, ype, input3, see_browser)
+	scrape.Scrape(baseURL, ype, input3, see_browser, predition)
 }
