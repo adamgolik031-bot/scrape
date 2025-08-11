@@ -1,9 +1,14 @@
 package clo
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -53,4 +58,63 @@ func WaitForCloudflareBypass(ctx context.Context) error {
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func downloadFile(filepath string, url string) error {
+	// Pobiera plik z url i zapisuje do filepath
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func unzip(src string, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		fpath := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, os.ModePerm)
+			continue
+		}
+
+		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+			return err
+		}
+
+		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+
+		outFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
